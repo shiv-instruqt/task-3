@@ -27,19 +27,23 @@ resource "vm" "ubuntu" {
 
   startup_script = <<-SCRIPT
     #!/bin/bash
-    set -e
-    export DEBIAN_FRONTEND=noninteractive
+    # Exit fast — write a setup script and run it in the background.
+    # This prevents the Instruqt RPC connection from timing out.
 
-    apt-get update -y
-    apt-get install -y python3 python3-pip python3-venv nano curl
+    cat > /root/setup.sh << 'SETUPEOF'
+#!/bin/bash
+set -e
+export DEBIAN_FRONTEND=noninteractive
 
-    python3 -m venv /root/.venv
-    /root/.venv/bin/pip install flask
+apt-get update -y
+apt-get install -y python3 python3-pip python3-venv nano curl
 
-    mkdir -p /root/calculator/templates
+python3 -m venv /root/.venv
+/root/.venv/bin/pip install flask
 
-    # ── database.py ──────────────────────────────────────────
-    cat > /root/calculator/database.py << 'PYEOF'
+mkdir -p /root/calculator/templates
+
+cat > /root/calculator/database.py << 'PYEOF'
 import sqlite3, os
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "history.db")
 
@@ -68,8 +72,7 @@ def clear_history():
     conn.commit(); conn.close()
 PYEOF
 
-    # ── app.py ───────────────────────────────────────────────
-    cat > /root/calculator/app.py << 'PYEOF'
+cat > /root/calculator/app.py << 'PYEOF'
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from database import init_db, save_calculation, get_history, clear_history
 import math
@@ -116,8 +119,7 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
 PYEOF
 
-    # ── templates/calc.html ──────────────────────────────────
-    cat > /root/calculator/templates/calc.html << 'HTMLEOF'
+cat > /root/calculator/templates/calc.html << 'HTMLEOF'
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
 <title>Calculator</title>
 <style>
@@ -194,8 +196,7 @@ document.addEventListener("keydown",e=>{
 </script></body></html>
 HTMLEOF
 
-    # ── templates/history.html ───────────────────────────────
-    cat > /root/calculator/templates/history.html << 'HTMLEOF'
+cat > /root/calculator/templates/history.html << 'HTMLEOF'
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
 <title>History</title>
 <style>
@@ -235,28 +236,12 @@ td.time{color:#333350;font-size:.7rem;text-align:right;width:160px}
 {% endif %}</div></body></html>
 HTMLEOF
 
-    # ── Start Flask ──────────────────────────────────────────
-    nohup /root/.venv/bin/python /root/calculator/app.py > /var/log/calculator.log 2>&1 &
+nohup /root/.venv/bin/python /root/calculator/app.py > /var/log/calculator.log 2>&1 &
+echo "Setup complete" > /root/setup.done
+SETUPEOF
 
-    # ── Wait until Flask responds ─────────────────────────────
-    READY=0
-    for i in $(seq 1 30); do
-        if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
-            echo "Flask is live (attempt $i)"
-            READY=1
-            break
-        fi
-        echo "Waiting for Flask... attempt $i/30"
-        sleep 2
-    done
-
-    if [ "$READY" -eq 0 ]; then
-        echo "ERROR: Flask did not start. Log:"
-        cat /var/log/calculator.log
-        exit 1
-    fi
-
-    sleep 5
+    chmod +x /root/setup.sh
+    nohup /root/setup.sh > /var/log/setup.log 2>&1 &
     exit 0
   SCRIPT
 }
