@@ -23,3 +23,13 @@ resource "lab" "main" {
     }
   }
 }
+
+resource "page" "overview" {
+  title = "Lab Overview"
+  file  = "instructions/overview.md"
+}
+
+resource "page" "verify" {
+  title = "Verify the Setup"
+  file  = "instructions/verify.md"
+}
