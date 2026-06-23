@@ -21,5 +21,8 @@ resource "layout" "single_panel" {
       title  = "notes"
       target = resource.note.notes
     }
+    instructions {
+      title = "Instructions"
+    }
   }
 }
