@@ -16,9 +16,21 @@ resource "layout" "single_panel" {
   }
   column {
     width = "50"
-    tab "notes" {
-      title  = "notes"
-      target = resource.note.notes
+
+    row {
+      height = "60"
+      instructions {
+        title  = "Instructions"
+        active = true
+      }
+    }
+
+    row {
+      height = "40"
+      tab "notes" {
+        title  = "notes"
+        target = resource.note.notes
+      }
     }
   }
 }
