@@ -1,36 +1,32 @@
 #!/bin/bash
-set -euxo pipefail
+set -e
 
 # ============================================================
 # Instruqt 2.0 — Exec Setup Script
-# Resource: exec.setup_calculator
-# Target:   container.container-3 (ubuntu:22.04)
-#
-# What this does (fully automated, learner sees nothing):
-#   1. Installs Python3 + pip + Flask
-#   2. Writes all app files into /root/calculator/
-#   3. Starts Flask as a background daemon on port 8080
-#   4. Waits until port 8080 is responding before exiting
+# Resource : exec.setup_calculator
+# Target   : container.container-3 (ubuntu:22.04)
+# Env vars : DEBIAN_FRONTEND, APP_DIR, PORT (set in sandboxes.hcl)
 # ============================================================
 
 APP_DIR="${APP_DIR:-/root/calculator}"
 PORT="${PORT:-8080}"
 
 # ------------------------------------------------------------
-# 1. Install dependencies
+# 1. Install system dependencies
 # ------------------------------------------------------------
-echo ">>> Updating apt and installing Python3 + pip..."
-apt-get update -qq
-apt-get install -y -qq python3 python3-pip curl
+echo ">>> apt-get update..."
+apt-get update -y
 
-echo ">>> Installing Flask..."
-pip3 install flask --quiet --break-system-packages 2>/dev/null \
-  || pip3 install flask --quiet
+echo ">>> Installing python3, pip, curl..."
+apt-get install -y python3 python3-pip curl
+
+echo ">>> Installing Flask via pip3..."
+pip3 install flask
 
 # ------------------------------------------------------------
 # 2. Create directory structure
 # ------------------------------------------------------------
-echo ">>> Creating app directory: $APP_DIR"
+echo ">>> Creating $APP_DIR/templates..."
 mkdir -p "$APP_DIR/templates"
 
 # ------------------------------------------------------------
@@ -47,7 +43,7 @@ def init_db():
     c = conn.cursor()
     c.execute("""
         CREATE TABLE IF NOT EXISTS history (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
             expression TEXT NOT NULL,
             result     TEXT NOT NULL,
             timestamp  DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -107,7 +103,7 @@ def safe_eval(expression):
     except ZeroDivisionError:
         return None, "Division by zero"
     except Exception as e:
-        return None, f"Invalid expression: {str(e)}"
+        return None, "Invalid expression: {}".format(str(e))
 
 @app.route("/")
 def calculator():
@@ -120,7 +116,7 @@ def calculate():
     result, error = safe_eval(expression)
     if error:
         return jsonify({"error": error})
-    display = f"{result:.10g}" if isinstance(result, float) else str(result)
+    display = "{:.10g}".format(result) if isinstance(result, float) else str(result)
     save_calculation(expression, display)
     return jsonify({"result": display})
 
@@ -151,42 +147,28 @@ cat > "$APP_DIR/templates/calc.html" << 'HTMLEOF'
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      min-height: 100vh;
-      background: #0f0f13;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      min-height: 100vh; background: #0f0f13;
+      display: flex; align-items: center; justify-content: center;
       font-family: 'Courier New', monospace;
     }
     .wrap { width: 340px; }
     h1 {
-      text-align: center;
-      color: #7c6af7;
-      font-size: 1rem;
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      margin-bottom: 20px;
-      opacity: 0.8;
+      text-align: center; color: #7c6af7; font-size: 1rem;
+      letter-spacing: 0.3em; text-transform: uppercase;
+      margin-bottom: 20px; opacity: 0.8;
     }
     .calc {
-      background: #1a1a24;
-      border-radius: 16px;
-      padding: 20px;
+      background: #1a1a24; border-radius: 16px; padding: 20px;
       box-shadow: 0 20px 60px rgba(124,106,247,0.15), 0 0 0 1px rgba(124,106,247,0.1);
     }
     .display {
-      background: #0f0f13;
-      border-radius: 10px;
-      padding: 16px 18px;
-      margin-bottom: 16px;
-      min-height: 80px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
+      background: #0f0f13; border-radius: 10px; padding: 16px 18px;
+      margin-bottom: 16px; min-height: 80px;
+      display: flex; flex-direction: column; justify-content: space-between;
       border: 1px solid rgba(124,106,247,0.15);
     }
-    .display .expr { color: #555570; font-size: 0.78rem; min-height: 16px; word-break: break-all; }
-    .display .result { color: #e8e8f0; font-size: 2rem; font-weight: bold; text-align: right; word-break: break-all; }
+    .display .expr  { color: #555570; font-size: 0.78rem; min-height: 16px; word-break: break-all; }
+    .display .result{ color: #e8e8f0; font-size: 2rem; font-weight: bold; text-align: right; word-break: break-all; }
     .display .result.error { color: #f76a6a; font-size: 1rem; }
     .buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     button {
@@ -195,18 +177,18 @@ cat > "$APP_DIR/templates/calc.html" << 'HTMLEOF'
       cursor: pointer; transition: all 0.12s ease; font-weight: 600;
     }
     button:active { transform: scale(0.94); }
-    .btn-num { background: #252535; color: #e8e8f0; }
-    .btn-num:hover { background: #2e2e45; }
-    .btn-op  { background: #2a2040; color: #a99af5; }
-    .btn-op:hover  { background: #352855; }
-    .btn-fn  { background: #1e2535; color: #6ab5f7; font-size: 0.82rem; }
-    .btn-fn:hover  { background: #253045; }
-    .btn-eq  { background: #7c6af7; color: #fff; grid-column: span 2; }
-    .btn-eq:hover  { background: #8f7fff; }
+    .btn-num   { background: #252535; color: #e8e8f0; }
+    .btn-num:hover   { background: #2e2e45; }
+    .btn-op    { background: #2a2040; color: #a99af5; }
+    .btn-op:hover    { background: #352855; }
+    .btn-fn    { background: #1e2535; color: #6ab5f7; font-size: 0.82rem; }
+    .btn-fn:hover    { background: #253045; }
+    .btn-eq    { background: #7c6af7; color: #fff; grid-column: span 2; }
+    .btn-eq:hover    { background: #8f7fff; }
     .btn-clear { background: #3a1f2a; color: #f76a6a; }
     .btn-clear:hover { background: #4a2535; }
-    .btn-del { background: #2a2535; color: #f7a86a; }
-    .btn-del:hover { background: #352f45; }
+    .btn-del   { background: #2a2535; color: #f7a86a; }
+    .btn-del:hover   { background: #352f45; }
     .history-link {
       display: block; text-align: center; margin-top: 14px;
       color: #555570; font-size: 0.75rem; letter-spacing: 0.1em;
@@ -220,7 +202,7 @@ cat > "$APP_DIR/templates/calc.html" << 'HTMLEOF'
     <h1>&#9670; Calc Lab</h1>
     <div class="calc">
       <div class="display">
-        <div class="expr" id="expr"></div>
+        <div class="expr"   id="expr"></div>
         <div class="result" id="result">0</div>
       </div>
       <div class="buttons">
@@ -272,7 +254,7 @@ cat > "$APP_DIR/templates/calc.html" << 'HTMLEOF'
       update();
     }
     function deleteLast() { expr = expr.slice(0, -1); update(); }
-    function update() { document.getElementById("expr").textContent = expr; }
+    function update()     { document.getElementById("expr").textContent = expr; }
     async function calculate() {
       if (!expr) return;
       const res  = await fetch("/calculate", {
@@ -282,8 +264,15 @@ cat > "$APP_DIR/templates/calc.html" << 'HTMLEOF'
       });
       const data = await res.json();
       const el   = document.getElementById("result");
-      if (data.error) { el.textContent = data.error; el.className = "result error"; }
-      else            { el.textContent = data.result; el.className = "result"; expr = data.result; update(); }
+      if (data.error) {
+        el.textContent = data.error;
+        el.className   = "result error";
+      } else {
+        el.textContent = data.result;
+        el.className   = "result";
+        expr = data.result;
+        update();
+      }
     }
     document.addEventListener("keydown", (e) => {
       if      (e.key === "Enter")     calculate();
@@ -313,10 +302,16 @@ cat > "$APP_DIR/templates/history.html" << 'HTMLEOF'
       font-family: 'Courier New', monospace; color: #e8e8f0; padding: 30px 20px;
     }
     .container { max-width: 680px; margin: 0 auto; }
-    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .header {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 24px;
+    }
     h1 { color: #7c6af7; font-size: 0.95rem; letter-spacing: 0.3em; text-transform: uppercase; }
     .actions { display: flex; gap: 10px; align-items: center; }
-    .back-link { color: #555570; text-decoration: none; font-size: 0.78rem; letter-spacing: 0.1em; transition: color 0.2s; }
+    .back-link {
+      color: #555570; text-decoration: none;
+      font-size: 0.78rem; letter-spacing: 0.1em; transition: color 0.2s;
+    }
     .back-link:hover { color: #7c6af7; }
     .clear-btn {
       background: #3a1f2a; color: #f76a6a; border: none; border-radius: 7px;
@@ -338,7 +333,7 @@ cat > "$APP_DIR/templates/history.html" << 'HTMLEOF'
     td.id     { color: #333350; font-size: 0.72rem; width: 40px; }
     td.expr   { color: #a99af5; word-break: break-all; }
     td.result { color: #6af79a; font-weight: bold; text-align: right; width: 130px; }
-    td.time   { color: #333350; font-size: 0.7rem;  text-align: right; width: 160px; }
+    td.time   { color: #333350; font-size: 0.7rem; text-align: right; width: 160px; }
   </style>
 </head>
 <body>
@@ -385,31 +380,37 @@ cat > "$APP_DIR/templates/history.html" << 'HTMLEOF'
 HTMLEOF
 
 # ------------------------------------------------------------
-# 7. Start Flask as a background daemon
-#    nohup + redirect keeps it alive after exec exits
+# 7. Launch Flask as background daemon
+#    Use 'set +e' around the background launch so the & does
+#    not trigger an exit under set -e
 # ------------------------------------------------------------
-echo ">>> Starting Flask server on port $PORT..."
+echo ">>> Starting Flask on port $PORT..."
 cd "$APP_DIR"
+set +e
 nohup python3 app.py > /var/log/calculator.log 2>&1 &
 FLASK_PID=$!
+set -e
 echo "Flask PID: $FLASK_PID"
 
 # ------------------------------------------------------------
-# 8. Wait until Flask is actually responding (max 60s)
+# 8. Wait up to 60s for Flask to respond on port 8080
 # ------------------------------------------------------------
-echo ">>> Waiting for Flask to respond on port $PORT..."
+echo ">>> Waiting for Flask to be ready..."
+READY=0
 for i in $(seq 1 30); do
     if curl -sf "http://localhost:${PORT}/" > /dev/null 2>&1; then
-        echo ">>> Flask is live! (attempt $i)"
+        echo ">>> Flask is live on port $PORT (attempt $i)"
+        READY=1
         break
     fi
-    if [ "$i" -eq 30 ]; then
-        echo "ERROR: Flask did not start within 60 seconds."
-        cat /var/log/calculator.log
-        exit 1
-    fi
-    echo "  attempt $i/30 — waiting 2s..."
+    echo "  attempt $i/30 — retrying in 2s..."
     sleep 2
 done
 
-echo ">>> Setup complete. Calculator running on port $PORT."
+if [ "$READY" -eq 0 ]; then
+    echo "ERROR: Flask did not start within 60 seconds. Log:"
+    cat /var/log/calculator.log
+    exit 1
+fi
+
+echo ">>> Setup complete."
