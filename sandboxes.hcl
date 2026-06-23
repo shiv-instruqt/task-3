@@ -1,5 +1,5 @@
-resource "network" "network" {
-  subnet = "10.100.100.0/24"
+resource "network" "main" {
+  subnet = "10.0.200.0/24"
 }
 
 resource "vm" "ubuntu" {
@@ -9,41 +9,23 @@ resource "vm" "ubuntu" {
 
   resources {
     cpu    = 2
-    memory = 2048
+    memory = 4096
   }
 
   environment = {
     DEBIAN_FRONTEND = "noninteractive"
   }
 
-  network {
-    id = resource.network.network.meta.id
-  }
-
-  port {
-    local = 8080
-    host  = 8080
-  }
-
-  startup_script = <<-SCRIPT
+  startup_script = <<-EOF
     #!/bin/bash
-    # Exit fast — write a setup script and run it in the background.
-    # This prevents the Instruqt RPC connection from timing out.
-
-    cat > /root/setup.sh << 'SETUPEOF'
-#!/bin/bash
-set -e
-export DEBIAN_FRONTEND=noninteractive
-
-apt-get update -y
-apt-get install -y python3 python3-pip python3-venv nano curl
-
-python3 -m venv /root/.venv
-/root/.venv/bin/pip install flask
-
-mkdir -p /root/calculator/templates
-
-cat > /root/calculator/database.py << 'PYEOF'
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -y
+    apt-get install -y python3 python3-pip python3-venv nano curl
+    cd /root
+    python3 -m venv .venv
+    /root/.venv/bin/pip install flask
+    mkdir -p /root/calculator/templates
+    cat > /root/calculator/database.py << 'PYEOF'
 import sqlite3, os
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "history.db")
 
@@ -71,8 +53,7 @@ def clear_history():
     conn.execute("DELETE FROM history")
     conn.commit(); conn.close()
 PYEOF
-
-cat > /root/calculator/app.py << 'PYEOF'
+    cat > /root/calculator/app.py << 'PYEOF'
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from database import init_db, save_calculation, get_history, clear_history
 import math
@@ -118,8 +99,7 @@ def health(): return jsonify({"status": "ok"}), 200
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
 PYEOF
-
-cat > /root/calculator/templates/calc.html << 'HTMLEOF'
+    cat > /root/calculator/templates/calc.html << 'HTMLEOF'
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
 <title>Calculator</title>
 <style>
@@ -195,8 +175,7 @@ document.addEventListener("keydown",e=>{
   else if("0123456789.+-*/%()" .includes(e.key))append(e.key);});
 </script></body></html>
 HTMLEOF
-
-cat > /root/calculator/templates/history.html << 'HTMLEOF'
+    cat > /root/calculator/templates/history.html << 'HTMLEOF'
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
 <title>History</title>
 <style>
@@ -235,13 +214,16 @@ td.time{color:#333350;font-size:.7rem;text-align:right;width:160px}
 </tr>{% endfor %}</tbody></table>
 {% endif %}</div></body></html>
 HTMLEOF
-
-nohup /root/.venv/bin/python /root/calculator/app.py > /var/log/calculator.log 2>&1 &
-echo "Setup complete" > /root/setup.done
-SETUPEOF
-
-    chmod +x /root/setup.sh
-    nohup /root/setup.sh > /var/log/setup.log 2>&1 &
+    nohup /root/.venv/bin/python /root/calculator/app.py > /var/log/flask-app.log 2>&1 &
     exit 0
-  SCRIPT
+  EOF
+
+  port {
+    local = 8080
+    host  = 8080
+  }
+
+  network {
+    id = resource.network.main.meta.id
+  }
 }
