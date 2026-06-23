@@ -28,18 +28,12 @@ resource "container" "container-3" {
     user  = "root"
     group = "root"
   }
-
-  # Instruqt waits until port 8080 responds before showing
-  # any Service tabs to the learner — eliminates "Please wait"
-  health_check {
-    timeout = "120s"
-
-    tcp {
-      address = "localhost:8080"
-    }
-  }
 }
 
+# exec runs AFTER the container is up.
+# The script installs Flask, writes all app files, starts Flask
+# as a background daemon, and polls port 8080 until it responds
+# before exiting — so tabs are live when the learner sees the lab.
 resource "exec" "setup_calculator" {
   target  = resource.container.container-3
   script  = "scripts/exec/setup_calculator/script.sh"
