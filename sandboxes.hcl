@@ -11,6 +11,7 @@ resource "container" "container-3" {
   }
   port {
     local    = "8080"
+    host     = "8080"
     protocol = "tcp"
   }
   privileged = false
