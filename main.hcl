@@ -22,6 +22,20 @@ resource "lab" "main" {
       show_stop = true
     }
   }
+
+  content {
+    chapter "setup" {
+      title = "Lab Setup"
+
+      page "overview" {
+        reference = resource.page.overview
+      }
+
+      page "verify" {
+        reference = resource.page.verify
+      }
+    }
+  }
 }
 
 resource "page" "overview" {
