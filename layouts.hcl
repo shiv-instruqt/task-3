@@ -1,6 +1,7 @@
 resource "layout" "single_panel" {
+  # Left column — app tabs (50%)
   column {
-    width = "50"
+    width = "34"
     tab "calculator" {
       title  = "calculator"
       target = resource.service.calculator
@@ -14,23 +15,22 @@ resource "layout" "single_panel" {
       target = resource.terminal.terminal
     }
   }
+
+  # Middle column — instructions (33%)
   column {
-    width = "50"
-
-    row {
-      height = "60"
-      instructions {
-        title  = "Instructions"
-        active = true
-      }
+    width = "33"
+    instructions {
+      title  = "Instructions"
+      active = true
     }
+  }
 
-    row {
-      height = "40"
-      tab "notes" {
-        title  = "notes"
-        target = resource.note.notes
-      }
+  # Right column — notes (33%)
+  column {
+    width = "33"
+    tab "notes" {
+      title  = "notes"
+      target = resource.note.notes
     }
   }
 }
