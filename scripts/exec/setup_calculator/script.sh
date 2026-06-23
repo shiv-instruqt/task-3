@@ -413,4 +413,6 @@ if [ "$READY" -eq 0 ]; then
     exit 1
 fi
 
+echo ">>> Flask confirmed live. Waiting 5s for proxy registration..."
+sleep 5
 echo ">>> Setup complete."
