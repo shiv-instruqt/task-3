@@ -1,17 +1,20 @@
 resource "service" "calculator" {
-  target = resource.container.container-3
+  target = resource.vm.ubuntu
+  scheme = "http"
   port   = 8080
   path   = "/"
 }
 
 resource "service" "history" {
-  target = resource.container.container-3
+  target = resource.vm.ubuntu
+  scheme = "http"
   port   = 8080
   path   = "/history"
 }
 
 resource "terminal" "terminal" {
-  target = resource.container.container-3
+  target = resource.vm.ubuntu
+  shell  = "/bin/bash"
 }
 
 resource "note" "notes" {
