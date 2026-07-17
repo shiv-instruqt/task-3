@@ -14,7 +14,7 @@ resource "lab" "main" {
 
     idle {
       enabled      = true
-      timeout      = "5m"
+      timeout      = "20m"
       show_warning = true
     }
 
